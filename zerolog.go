@@ -36,7 +36,6 @@ func NewZerolog() *Zerolog {
 
 func (z *Zerolog) Infof(format string, args ...interface{}) {
 	z.Logger.Info().Msgf(format, args...)
-	//z.Infof(format, args)
 }
 
 func (z *Zerolog) Info(args ...interface{}) {
