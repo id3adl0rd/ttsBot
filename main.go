@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,6 +9,7 @@ import (
 var (
 	Log        *Zerolog
 	Enviroment *Config
+	DBot       *Bot
 )
 
 const (
@@ -35,9 +35,11 @@ func main() {
 	Log.Info("Starting bot...")
 
 	bot := NewBot()
-	fmt.Println(bot)
+	DBot = bot
 
-	err := bot.session.Open()
+	bot.Session.AddHandler(bot.MessageHandler)
+
+	err := bot.Session.Open()
 	if err != nil {
 		Log.Errorf("Error opening session: %v", err)
 	}
@@ -47,5 +49,5 @@ func main() {
 	<-sc
 
 	Log.Info("Stopping bot...")
-	bot.session.Close()
+	bot.Session.Close()
 }
