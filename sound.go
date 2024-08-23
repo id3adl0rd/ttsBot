@@ -24,11 +24,15 @@ func (s *Sound) Play(name string, vc *discordgo.VoiceConnection) {
 	//s.Load(name, vc)
 }
 
-func (s *Sound) Load(path string, session *discordgo.Session, gID, channelID string) {
-	vc, err := session.ChannelVoiceJoin(gID, channelID, false, true)
-	if err != nil {
-		Log.Warn(err)
-		return
+func (b *Bot) Load(path string, session *discordgo.Session, gID, channelID string) {
+	if b.voiceChannel == nil {
+		vc, err := session.ChannelVoiceJoin(gID, channelID, false, true)
+		if err != nil {
+			Log.Warn(err)
+			return
+		}
+
+		b.voiceChannel = vc
 	}
 
 	owd, err := os.Getwd()
@@ -37,7 +41,7 @@ func (s *Sound) Load(path string, session *discordgo.Session, gID, channelID str
 		Log.Info(err)
 	}
 
-	dgvoice.PlayAudioFile(vc, fmt.Sprintf("%s/%s", owd, path), make(chan bool))
-
-	vc.Disconnect()
+	stop := make(chan bool)
+	fmt.Println("Playing playing!!!")
+	dgvoice.PlayAudioFile(b.voiceChannel, fmt.Sprintf("%s/%s", owd, path), stop)
 }

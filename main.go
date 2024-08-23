@@ -3,13 +3,13 @@ package main
 import (
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 )
 
 var (
 	Log        *Zerolog
 	Enviroment *Config
-	DBot       *Bot
 )
 
 const (
@@ -34,12 +34,12 @@ func init() {
 func main() {
 	Log.Info("Starting bot...")
 
+	runtime.GOMAXPROCS(4)
+
 	bot := NewBot()
-	DBot = bot
+	bot.session.AddHandler(bot.MessageHandler)
 
-	bot.Session.AddHandler(bot.MessageHandler)
-
-	err := bot.Session.Open()
+	err := bot.session.Open()
 	if err != nil {
 		Log.Errorf("Error opening session: %v", err)
 	}
@@ -49,5 +49,5 @@ func main() {
 	<-sc
 
 	Log.Info("Stopping bot...")
-	bot.Session.Close()
+	bot.session.Close()
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/uuid"
 	htgotts "github.com/hegedustibor/htgo-tts"
@@ -8,14 +9,25 @@ import (
 	"github.com/hegedustibor/htgo-tts/voices"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Bot struct {
-	Session *discordgo.Session
-	Cache   *LRU
-	Mutex   sync.Mutex
-	Wg      sync.WaitGroup
-	Queue   map[int]string
+	session      *discordgo.Session
+	voiceChannel *discordgo.VoiceConnection
+	cache        *LRU
+	mutex        sync.RWMutex
+	wg           sync.WaitGroup
+	queue        []string
+	channelID    string
+	guildID      string
+	isPlaying    bool
+}
+
+type Guild struct {
+	channelID string
+	guildID   string
+	isPlaying bool
 }
 
 func NewBot() *Bot {
@@ -32,11 +44,11 @@ func NewBot() *Bot {
 	}
 
 	return &Bot{
-		Session: dg,
-		Cache:   NewLru(100),
-		Mutex:   sync.Mutex{},
-		Wg:      sync.WaitGroup{},
-		Queue:   make(map[int]string),
+		session: dg,
+		cache:   NewLru(100),
+		mutex:   sync.RWMutex{},
+		wg:      sync.WaitGroup{},
+		queue:   make([]string, 0),
 	}
 }
 
@@ -64,9 +76,11 @@ func (b *Bot) MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	for _, vs := range g.VoiceStates {
 		if vs.UserID == m.Author.ID {
-			Log.Info("Joining voice channel")
+			Log.Info("Message received")
 
-			b.PlayTTS(m.Content, g.ID, vs.ChannelID, m)
+			go func() {
+				worker(b, m.Content, g.ID, vs.ChannelID)
+			}()
 
 			Log.Info("Successfully played")
 
@@ -76,7 +90,7 @@ func (b *Bot) MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func (b *Bot) CreateTTS(message string) string {
-	result := b.Cache.Get(message)
+	result := b.cache.Get(message)
 
 	if result != nil {
 		Log.Info("Message was founded in cache")
@@ -97,49 +111,78 @@ func (b *Bot) CreateTTS(message string) string {
 
 	Log.Info("Speech created:", fileName)
 
-	b.Cache.Set(message, fileName)
+	b.cache.Set(message, fileName)
 
 	return fileName
 }
 
-func (b *Bot) PlayTTS(message, gID, vsChannelID string, m *discordgo.MessageCreate) {
-	var filePath string
-
-	b.Wg.Add(1)
-	go func() {
-		filePath = b.CreateTTS(message)
-		b.Wg.Done()
-	}()
-
-	b.Wg.Wait()
-
-	if filePath == "" {
-		Log.Warn("TTS sound doesn't created")
-		b.Session.MessageReactionAdd(m.ChannelID, m.ID, "❌")
+func (b *Bot) PlayTTS(message, gID, vsChannelID string) {
+	fmt.Println("isPlaying", b.isPlaying)
+	if b.isPlaying == true {
 		return
 	}
 
-	b.Session.MessageReactionAdd(m.ChannelID, m.ID, "✅")
+	b.isPlaying = true
 
-	b.Wg.Add(1)
+	var filePath string
+
+	fmt.Println("1")
+	b.wg.Add(1)
 	go func() {
-		sound := NewSound(filePath)
-		sound.Load(filePath, b.Session, gID, vsChannelID)
-
-		b.Wg.Done()
+		filePath = b.CreateTTS(message)
+		b.wg.Done()
 	}()
 
-	b.Wg.Wait()
-}
+	fmt.Println("2")
+	b.wg.Wait()
+	fmt.Println("3")
 
-func (b *Bot) AddToQueue(message string) {
+	if filePath == "" {
+		Log.Warn("TTS sound doesn't created")
+		return
+	}
 
-}
+	fmt.Println("4")
+	b.wg.Add(1)
+	go func() {
+		//sound := NewSound(filePath)
+		b.Load(filePath, b.session, gID, vsChannelID)
 
-func (b *Bot) RemoveFromQueue(message string) {
+		b.wg.Done()
+	}()
+	fmt.Println("5")
+	b.wg.Wait()
+	fmt.Println("6")
 
+	b.QueueRemoveFisrt()
+	b.isPlaying = false
+	b.TimeoutCreate()
 }
 
 func (b *Bot) Stop() {
 
+}
+
+func (b *Bot) TimeoutCreate() {
+	//timer := time.NewTimer(10 * time.Second)
+
+	if len(b.queue) != 0 {
+		Log.Info("Get sound from queue")
+		b.PlayTTS(b.GetSound(), b.guildID, b.channelID)
+	} else {
+		Log.Info("Disconnect timer activated")
+		//<-timer.C
+	}
+	Log.Info("Bot was inactive for 10 seconds")
+
+	//b.voiceChannel.Disconnect()
+	//b.voiceChannel = nil
+}
+
+func (b *Bot) globalTicker() {
+	timer := time.NewTimer(900 * time.Second)
+	go func() {
+		<-timer.C
+		b.voiceChannel.Disconnect()
+	}()
 }
