@@ -1,8 +1,6 @@
 package main
 
-import "fmt"
-
-func (b *Bot) GetSound() string {
+/*func (b *Bot) GetSound() string {
 	b.mutex.RLock()
 	if len(b.queue) > 0 {
 		return b.queue[0]
@@ -54,4 +52,4 @@ func (b *Bot) QueueRemove() {
 	b.mutex.Lock()
 	b.queue = []string{}
 	b.mutex.Unlock()
-}
+}*/

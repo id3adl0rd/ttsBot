@@ -1,30 +1,28 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
+	"ttsBot/config"
+	"ttsBot/logger"
 )
 
 var (
-	Log        *Zerolog
-	Enviroment *Config
-)
-
-const (
-	LogFile = "ttsBot.log"
+	Log        *logger.Zerolog
+	Enviroment *config.Config
 )
 
 func init() {
-	Log = NewZerolog()
+	Log = logger.NewZerolog()
 	path, err := os.Getwd()
 
 	if err != nil {
 		Log.Error(err)
 	}
 
-	Enviroment, err = InitConfig(path)
+	Enviroment, err = config.InitConfig(path)
 
 	if err != nil {
 		Log.Error(err)
@@ -33,8 +31,6 @@ func init() {
 
 func main() {
 	Log.Info("Starting bot...")
-
-	runtime.GOMAXPROCS(4)
 
 	bot := NewBot()
 	bot.session.AddHandler(bot.MessageHandler)
@@ -50,4 +46,8 @@ func main() {
 
 	Log.Info("Stopping bot...")
 	bot.session.Close()
+}
+
+func test() {
+	fmt.Println("testing")
 }

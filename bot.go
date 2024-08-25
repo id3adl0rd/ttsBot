@@ -1,36 +1,19 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"github.com/google/uuid"
-	htgotts "github.com/hegedustibor/htgo-tts"
-	"github.com/hegedustibor/htgo-tts/handlers"
-	"github.com/hegedustibor/htgo-tts/voices"
-	"strings"
 	"sync"
-	"time"
 )
 
-type Bot struct {
-	session      *discordgo.Session
-	voiceChannel *discordgo.VoiceConnection
-	cache        *LRU
-	mutex        sync.RWMutex
-	wg           sync.WaitGroup
-	queue        []string
-	channelID    string
-	guildID      string
-	isPlaying    bool
-}
-
-type Guild struct {
+/*type Guild struct {
 	channelID string
 	guildID   string
 	isPlaying bool
-}
+}*/
 
-func NewBot() *Bot {
+/*func NewBot() *Bot {
 	if Enviroment.Bot.Token == "" {
 		Log.Error("Error creating Discord session. Missing token.")
 		return nil
@@ -185,4 +168,137 @@ func (b *Bot) globalTicker() {
 		<-timer.C
 		b.voiceChannel.Disconnect()
 	}()
+}*/
+
+type Bot struct {
+	session    *discordgo.Session
+	guilds     map[string]*Guild
+	guildNames map[string]string
+	mutex      sync.Mutex
+}
+
+func NewBot() *Bot {
+	if Enviroment.Bot.Token == "" {
+		Log.Error("Error creating Discord session. Missing token.")
+		return nil
+	}
+
+	bot, err := discordgo.New("Bot " + Enviroment.Bot.Token)
+
+	if err != nil {
+		Log.Error("Error creating Discord session,", err)
+		return nil
+	}
+
+	return &Bot{
+		session:    bot,
+		guilds:     make(map[string]*Guild),
+		guildNames: make(map[string]string),
+		mutex:      sync.Mutex{},
+	}
+}
+
+func (b *Bot) MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
+	if m.Author.ID == s.State.User.ID {
+		Log.Warn("Author compared with User")
+		return
+	}
+
+	/*c, err := s.State.Channel(m.ChannelID)
+	if err != nil {
+		Log.Warn(err)
+		return
+	}
+
+	g, err := s.State.Guild(c.GuildID)
+	if err != nil {
+		Log.Warn(err)
+		return
+	}*/
+
+	channel, err := b.getVoiceChannelByMessageID(m)
+	if err != nil {
+		Log.Info(err)
+		return
+	}
+
+	fmt.Println(channel)
+
+	b.AddGuild(m)
+
+	filePath := createTTS(b, m)
+
+	fmt.Println(filePath)
+
+	/*for _, vs := range g.VoiceStates {
+		if vs.UserID == m.Author.ID {
+			Log.Info("Message received")
+
+			go func() {
+				worker(b, m.Content, g.ID, vs.ChannelID)
+			}()
+
+			Log.Info("Successfully played")
+
+			return
+		}
+	}*/
+}
+
+func (b *Bot) AddGuild(m *discordgo.MessageCreate) {
+	b.mutex.Lock()
+	guild := NewGuild(b.getGuildName(m))
+	b.guilds[m.GuildID] = guild
+	b.mutex.Unlock()
+}
+
+func (b *Bot) RemoveGuild(guildID string) {
+	b.mutex.Lock()
+	b.guilds[guildID] = nil
+	b.mutex.Unlock()
+}
+
+func (b *Bot) getGuildName(message *discordgo.MessageCreate) string {
+	value, found := b.guildNames[message.GuildID]
+	if !found {
+		guild, err := b.session.Guild(message.GuildID)
+		if err != nil {
+			b.guildNames[message.GuildID] = message.GuildID
+			return message.GuildID
+		}
+		b.guildNames[message.GuildID] = guild.Name
+		return guild.Name
+	}
+
+	return value
+}
+
+func (b *Bot) getVoiceChannelByMessageID(message *discordgo.MessageCreate) (string, error) {
+	guild, err := b.session.State.Guild(message.GuildID)
+	if err != nil {
+		return "", err
+	}
+
+	for _, voiceStates := range guild.VoiceStates {
+		if voiceStates.UserID == message.Author.ID {
+			return voiceStates.ChannelID, nil
+		}
+	}
+
+	return "", errors.New("user not in voice channel")
+}
+
+func (b *Bot) getVoiceChannelByMessageID2(message *discordgo.MessageCreate) (string, error) {
+	guild, err := b.session.State.Guild(message.GuildID)
+	if err != nil {
+		return "", err
+	}
+
+	for _, voiceStates := range guild.VoiceStates {
+		if voiceStates.UserID == message.Author.ID {
+			return voiceStates.ChannelID, nil
+		}
+	}
+
+	return "", errors.New("user not in voice channel")
 }

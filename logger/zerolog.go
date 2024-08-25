@@ -1,9 +1,13 @@
-package main
+package logger
 
 import (
 	"fmt"
 	"github.com/rs/zerolog"
 	"os"
+)
+
+const (
+	LogFile = "ttsBot.log"
 )
 
 type Logger interface {
