@@ -11,47 +11,7 @@ import (
 	"os"
 )
 
-/*
-type ISound interface {
-	Play()
-	Load()
-}
-
-type Sound struct {
-	Path string
-}
-
-func NewSound(path string) *Sound {
-	return &Sound{path}
-}
-
-func (s *Sound) Play(name string, vc *discordgo.VoiceConnection) {
-	//s.Load(name, vc)
-}
-
-func (b *Bot) Load(path string, session *discordgo.Session, gID, channelID string) {
-	if b.voiceChannel == nil {
-		vc, err := session.ChannelVoiceJoin(gID, channelID, false, true)
-		if err != nil {
-			Log.Warn(err)
-			return
-		}
-
-		b.voiceChannel = vc
-	}
-
-	owd, err := os.Getwd()
-
-	if err != nil {
-		Log.Info(err)
-	}
-
-	stop := make(chan bool)
-	fmt.Println("Playing playing!!!")
-	dgvoice.PlayAudioFile(b.voiceChannel, fmt.Sprintf("%s/%s", owd, path), stop)
-}*/
-
-func playSound(b *Bot, filePath, gID, channelID string) {
+func Play(b *Bot, g *Guild, filePath, gID, channelID string) {
 	vc, err := b.session.ChannelVoiceJoin(gID, channelID, false, true)
 	if err != nil {
 		Log.Warn(err)
@@ -64,17 +24,36 @@ func playSound(b *Bot, filePath, gID, channelID string) {
 		Log.Info(err)
 	}
 
-	dgvoice.PlayAudioFile(vc, fmt.Sprintf("%s/%s", owd, filePath), make(chan bool))
+	for media := range g.media {
+		if !vc.Ready {
+			vc.Disconnect()
+			Log.Info("Reconnecting...")
+
+			vc, err = b.session.ChannelVoiceJoin(gID, channelID, false, true)
+			if err != nil {
+				Log.Warn(err)
+				return
+			}
+		}
+
+		dgvoice.PlayAudioFile(vc, fmt.Sprintf("%s/%s", owd, media.path), make(chan bool))
+	}
+
+	fmt.Println("lolzxc")
+	g.UpdateTime()
+
+	vc.Disconnect()
+	return
 }
 
-func createTTS(b *Bot, m *discordgo.MessageCreate) string {
+func CreateTTS(b *Bot, m *discordgo.MessageCreate) string {
 	message := m.Content
-	/*result := b.cache.Get(message)
+	result := b.lru.Get(message)
 
 	if result != nil {
 		Log.Info("Message was founded in cache")
 		return result.(string)
-	}*/
+	}
 
 	speech := htgotts.Speech{Folder: "audio", Language: voices.Russian, Handler: &handlers.Native{}}
 
@@ -90,7 +69,7 @@ func createTTS(b *Bot, m *discordgo.MessageCreate) string {
 
 	Log.Info("Speech created:", filePath)
 
-	//b.cache.Set(message, filePath)
+	b.lru.Set(message, filePath)
 
 	return filePath
 }

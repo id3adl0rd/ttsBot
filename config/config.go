@@ -1,6 +1,9 @@
 package config
 
-import "github.com/spf13/viper"
+import (
+	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
+)
 
 type Config struct {
 	Bot  *BotConfig
@@ -42,7 +45,7 @@ func InitConfig(path string) (*Config, error) {
 
 	cfg.Misc.Cooldown = int16(viper.GetInt("misc.cooldown"))
 
-	Log.Info("Config successfully loaded")
+	log.Info().Msg("Config successfully loaded")
 
 	return cfg, nil
 }

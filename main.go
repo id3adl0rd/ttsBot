@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -33,6 +32,9 @@ func main() {
 	Log.Info("Starting bot...")
 
 	bot := NewBot()
+
+	go cleanConnectionWithEmptyQueue(bot)
+
 	bot.session.AddHandler(bot.MessageHandler)
 
 	err := bot.session.Open()
@@ -46,8 +48,4 @@ func main() {
 
 	Log.Info("Stopping bot...")
 	bot.session.Close()
-}
-
-func test() {
-	fmt.Println("testing")
 }

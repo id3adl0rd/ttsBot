@@ -1,8 +1,13 @@
 package main
 
+import (
+	"time"
+)
+
 type Guild struct {
 	actions *Actions
 	media   chan *Media
+	time    time.Time
 	name    string
 }
 
@@ -27,10 +32,22 @@ func (g *Guild) PrepareMediaChannel(size int) {
 	g.actions = NewActions()
 }
 
+func (g *Guild) IsQueueFull() bool {
+	return g.media != nil && len(g.media) == cap(g.media)
+}
+
 func (g *Guild) Stop() {
 	close(g.media)
 	g.media = nil
 	g.actions = nil
+}
+
+func (g *Guild) UpdateTime() {
+	g.time = time.Now().Add(3 * time.Second)
+}
+
+func (g *Guild) ShouldBeDeleted() bool {
+	return time.Now().After(g.time) || time.Now().Equal(g.time)
 }
 
 type Media struct {
