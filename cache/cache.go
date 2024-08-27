@@ -17,12 +17,12 @@ type LRU struct {
 	capacity int
 }
 
-func NewLru(capacity int) *LRU {
+func NewLru(capacity int16) *LRU {
 	return &LRU{
 		queue:    list.New(),
 		mutex:    &sync.RWMutex{},
 		items:    make(map[string]*list.Element),
-		capacity: capacity,
+		capacity: int(capacity),
 	}
 }
 
