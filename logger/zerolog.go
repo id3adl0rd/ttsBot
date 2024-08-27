@@ -6,6 +6,10 @@ import (
 	"os"
 )
 
+var (
+	Log *Zerolog
+)
+
 const (
 	LogFile = "ttsBot.log"
 )
