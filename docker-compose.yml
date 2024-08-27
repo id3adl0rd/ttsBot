@@ -7,3 +7,9 @@ services:
       - "27100:27017"
     volumes:
       - ./data/dev/mongo:/data/db
+    networks:
+      - network-mongo
+
+networks:
+  network-mongo:
+    driver: bridge

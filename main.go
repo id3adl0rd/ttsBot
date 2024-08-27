@@ -1,51 +1,66 @@
 package main
 
 import (
+	"context"
+	"go.mongodb.org/mongo-driver/mongo"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"ttsBot/config"
+	"ttsBot/db"
 	"ttsBot/logger"
 )
 
 var (
-	Log        *logger.Zerolog
 	Enviroment *config.Config
+	Client     *mongo.Client
 )
 
 func init() {
-	Log = logger.NewZerolog()
+	logger.Log = logger.NewZerolog()
 	path, err := os.Getwd()
 
 	if err != nil {
-		Log.Error(err)
+		logger.Log.Error(err)
 	}
 
 	Enviroment, err = config.InitConfig(path)
 
 	if err != nil {
-		Log.Error(err)
+		logger.Log.Error(err)
+	}
+
+	Client = db.Connect(Enviroment.DBConfig)
+
+	if Client == nil {
+		return
 	}
 }
 
 func main() {
-	Log.Info("Starting bot...")
+	logger.Log.Info("Starting bot...")
 
 	bot := NewBot()
 
-	go cleanConnectionWithEmptyQueue(bot)
+	runtime.GOMAXPROCS(6)
 
 	bot.session.AddHandler(bot.MessageHandler)
 
 	err := bot.session.Open()
 	if err != nil {
-		Log.Errorf("Error opening session: %v", err)
+		logger.Log.Errorf("Error opening session: %v", err)
 	}
+
+	go clearConnection(bot)
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
 
-	Log.Info("Stopping bot...")
+	logger.Log.Info("Stopping bot...")
 	bot.session.Close()
+
+	logger.Log.Info("Stopping database...")
+	Client.Disconnect(context.Background())
 }

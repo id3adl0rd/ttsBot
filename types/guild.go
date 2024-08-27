@@ -1,14 +1,15 @@
-package main
+package types
 
 import (
 	"time"
 )
 
 type Guild struct {
-	actions *Actions
-	media   chan *Media
-	time    time.Time
-	name    string
+	actions   *Actions
+	media     chan *Media
+	time      time.Time
+	name      string
+	isPlaying bool
 }
 
 func NewGuild(name string) *Guild {
@@ -40,19 +41,48 @@ func (g *Guild) Stop() {
 	close(g.media)
 	g.media = nil
 	g.actions = nil
+	g.isPlaying = false
 }
 
-func (g *Guild) UpdateTime() {
-	g.time = time.Now().Add(3 * time.Second)
+func (g *Guild) UpdateTime(t int64) {
+	g.time = time.Now().Add(time.Duration(t * int64(time.Second)))
 }
 
 func (g *Guild) ShouldBeDeleted() bool {
 	return time.Now().After(g.time) || time.Now().Equal(g.time)
 }
 
+func (g *Guild) IsPlaying() bool {
+	return g.isPlaying
+}
+
+func (g *Guild) GetMedia() chan *Media {
+	return g.media
+}
+
+func (g *Guild) SetIsPlaying(v bool) {
+	g.isPlaying = v
+}
+
 type Media struct {
 	message string
 	path    string
+}
+
+func (m *Media) SetMessage(message string) {
+	m.message = message
+}
+
+func (m *Media) SetPath(path string) {
+	m.path = path
+}
+
+func (m *Media) GetMessage() string {
+	return m.message
+}
+
+func (m *Media) GetPath() string {
+	return m.path
 }
 
 func NewMedia(message string, path string) *Media {
