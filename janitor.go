@@ -1,31 +1,20 @@
 package main
 
 import (
-	"fmt"
 	"time"
 )
 
-const (
-	leaveTime = 5 * time.Second
-)
-
-func cleanConnectionWithEmptyQueue(b *Bot) {
+func clearConnection(bot *Bot) {
 	for {
-		cleanAllConnection(b)
-		time.Sleep(leaveTime)
-	}
-}
-
-func cleanAllConnection(b *Bot) {
-	for _, connection := range b.session.VoiceConnections {
-		guild := b.GetGuild(connection.GuildID)
-		//fmt.Println("t1", guild.IsStreaming(), guild.time)
-		//&& guild.ShouldBeDeleted()
-		if !guild.IsStreaming() {
-			fmt.Println("lolzxcasd", guild.ShouldBeDeleted())
-			if guild.ShouldBeDeleted() {
-				connection.Disconnect()
+		for _, connection := range bot.session.VoiceConnections {
+			g := bot.GetGuild(connection.ChannelID)
+			if g.QueueSize() == 0 && g.ShouldBeDeleted() {
+				if g.ShouldBeDeleted() {
+					connection.Disconnect()
+				}
 			}
 		}
+
+		time.Sleep(time.Duration(Enviroment.Misc.DisconnectTimer * int64(time.Second)))
 	}
 }
